@@ -27,8 +27,12 @@ public class Lozenge implements IFigure {
     private PolygonDrawer polygonDrawer;
     private boolean redacted;
     List<RealPoint> referencePoints = new ArrayList<>();
+    private List<IAfine> afines = new ArrayList<>();
 
     public Lozenge(RealPoint p1, RealPoint p2) {
+        afines.add(new Scale());
+        afines.add(new Rotate());
+        afines.add(new Translation());
         this.p1 = p1;
         this.p2 = p2;
         setNewCoord(p1, p2);
@@ -43,7 +47,7 @@ public class Lozenge implements IFigure {
         this.redacted = redacted;
     }
 
-    public boolean checkClickInReference(ScreenPoint sp, ScreenConvector sc, List<IAfine> afines) {
+    public boolean checkClickInReference(ScreenPoint sp, ScreenConvector sc) {
 
         List<RealPoint> referencePoints = new ArrayList<>(this.referencePoints);
 
@@ -60,7 +64,7 @@ public class Lozenge implements IFigure {
         return false;
     }
 
-    public boolean checkClickInRotationFlag(ScreenPoint sp, ScreenConvector sc, List<IAfine> afines) {
+    public boolean checkClickInRotationFlag(ScreenPoint sp, ScreenConvector sc) {
 
         List<RealPoint> rotationPoint = new ArrayList<>();
         rotationPoint.add(p1);
@@ -81,7 +85,7 @@ public class Lozenge implements IFigure {
         return false;
     }
 
-    public boolean checkClick(ScreenPoint sp, ScreenConvector sc, List<IAfine> afines) {
+    public boolean checkClick(ScreenPoint sp, ScreenConvector sc) {
         RealPoint rp = sc.s2r(sp);
         double x = rp.getX();
         double y = rp.getY();
@@ -92,7 +96,7 @@ public class Lozenge implements IFigure {
             referencePoints = afine.transformation(referencePoints);
         }
 
-        RealPoint center = sc.s2r(getCenter(sc, afines));
+        RealPoint center = sc.s2r(getCenter(sc));
 
         boolean checkClickFirstLine = Checker.aboveLine((referencePoints.get(1).getY() - referencePoints.get(0).getY()) / (referencePoints.get(1).getX() - referencePoints.get(0).getX()), x, referencePoints.get(0).getX(), referencePoints.get(0).getY(), y);
         boolean checkClickSecondLine = Checker.aboveLine((referencePoints.get(2).getY() - referencePoints.get(1).getY()) / (referencePoints.get(2).getX() - referencePoints.get(1).getX()), x, referencePoints.get(1).getX(), referencePoints.get(1).getY(), y);
@@ -136,7 +140,7 @@ public class Lozenge implements IFigure {
     }
 
     @Override
-    public ScreenPoint getCenter(ScreenConvector sc, List<IAfine> afines) {
+    public ScreenPoint getCenter(ScreenConvector sc) {
 
         List<RealPoint> startPoint = new ArrayList<>();
         startPoint.add(p1);
@@ -165,13 +169,32 @@ public class Lozenge implements IFigure {
         return new RealPoint(sp2.getX() - (sp2.getX() - sp1.getX()) / 2, sp2.getY() - (sp2.getY() - sp1.getY()) / 2);
     }
 
+    @Override
+    public double getCosFI(int x, int y, ScreenConvector sc) {
+
+        List<RealPoint> startPoints = new ArrayList<>();
+        startPoints.add(p1);
+        startPoints.add(p2);
+
+        RealPoint vector = sc.s2r(new ScreenPoint(x,y));
+
+        for (IAfine afine : afines) {
+            startPoints = afine.transformation(startPoints);
+        }
+
+        startPoints.get(0).setX(startPoints.get(0).getX() + (startPoints.get(1).getX() - startPoints.get(0).getX())/2);
+
+        return ((startPoints.get(1).getX() * vector.getX()) + startPoints.get(0).getY() * vector.getY())
+                /(Math.sqrt(startPoints.get(1).getX() * startPoints.get(1).getX() + startPoints.get(0).getY() * startPoints.get(0).getY())
+        + Math.sqrt(vector.getX() * vector.getX() + vector.getY() * vector.getY()));
+    }
 
     public void setP2(RealPoint p2) {
         this.p2 = p2;
         setNewCoord(p1, p2);
     }
 
-    public Translation getTranslation(List<IAfine> afines) {
+    public Translation getTranslation() {
         Translation afine = null;
         for (IAfine a : afines) {
             if (a instanceof Translation) {
@@ -181,7 +204,7 @@ public class Lozenge implements IFigure {
         return afine;
     }
 
-    public Rotate getRotate(List<IAfine> afines) {
+    public Rotate getRotate() {
         Rotate afine = null;
         for (IAfine a : afines) {
             if (a instanceof Rotate) {
@@ -191,7 +214,7 @@ public class Lozenge implements IFigure {
         return afine;
     }
 
-    public Scale getScale(List<IAfine> afines) {
+    public Scale getScale() {
         Scale afine = null;
         for (IAfine a : afines) {
             if (a instanceof Scale) {
@@ -203,24 +226,13 @@ public class Lozenge implements IFigure {
 
 
     @Override
-    public void draw(PixelDrawer pd, ScreenConvector sc, List<IAfine> afines) {
+    public void draw(PixelDrawer pd, ScreenConvector sc) {
         lineDrawer.setPixelDrawer(pd);
         lozengeDrawer.setPixelDrawer(pd);
         polygonDrawer.setLineDrawer(new BresenhamLineDrawerParagraph(pd));
         List<RealPoint> referencePoints = new ArrayList<>(this.referencePoints);
-        List<RealPoint> center = new ArrayList<>();
-        center.add(getCenter());
 
         for (IAfine afine : afines) {
-
-            if(afine instanceof Rotate){
-                Rotate buffer = (Rotate) afine;
-                buffer.setOffsetX(center.get(0).getX());
-                buffer.setOffsetY(center.get(0).getY());
-            }
-
-            center = afine.transformation(center);
-
             referencePoints = afine.transformation(referencePoints);
         }
 

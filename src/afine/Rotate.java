@@ -63,9 +63,4 @@ public class Rotate  implements IAfine{
     public void setRadian(double radian) {
         this.radian = radian;
     }
-
-    @Override
-    public String toString() {
-        return "Rotate";
-    }
 }

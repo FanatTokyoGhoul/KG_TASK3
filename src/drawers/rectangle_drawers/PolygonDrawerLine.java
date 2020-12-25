@@ -20,7 +20,6 @@ public class PolygonDrawerLine implements PolygonDrawer {
 
     @Override
     public void drawPolygon(ScreenPoint[] screenPoints) {
-        ld.setColor(c);
         for(int i = 0; i < screenPoints.length - 1; i++){
             ld.drawLine(screenPoints[i], screenPoints[i + 1]);
         }

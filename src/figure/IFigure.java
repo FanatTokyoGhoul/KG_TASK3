@@ -12,27 +12,29 @@ import screen_conversion.ScreenPoint;
 import java.util.List;
 
 public interface IFigure {
-    void draw(PixelDrawer pd, ScreenConvector sc, List<IAfine> afines);
+    void draw(PixelDrawer pd, ScreenConvector sc);
 
-    boolean checkClick(ScreenPoint sp, ScreenConvector sc, List<IAfine> afines);
+    boolean checkClick(ScreenPoint sp, ScreenConvector sc);
 
-    boolean checkClickInReference(ScreenPoint sp, ScreenConvector sc, List<IAfine> afines);
+    boolean checkClickInReference(ScreenPoint sp, ScreenConvector sc);
 
     void setRedacted(boolean redacted);
 
-    Translation getTranslation(List<IAfine> afines);
+    Translation getTranslation();
 
-    Scale getScale(List<IAfine> afines);
+    Scale getScale();
 
     void setP2(RealPoint p2);
 
     void setP1(RealPoint p1);
 
-    ScreenPoint getCenter(ScreenConvector sc, List<IAfine> afines);
+    ScreenPoint getCenter(ScreenConvector sc);
 
     RealPoint getCenter();
 
-    Rotate getRotate(List<IAfine> afines);
+    double getCosFI(int x, int y, ScreenConvector sc);
 
-    boolean checkClickInRotationFlag(ScreenPoint sp, ScreenConvector sc, List<IAfine> afines);
+    Rotate getRotate();
+
+    boolean checkClickInRotationFlag(ScreenPoint sp, ScreenConvector sc);
 }

@@ -32,9 +32,4 @@ public class Translation implements IAfine{
     public void setY(double y) {
         this.y = y;
     }
-
-    @Override
-    public String toString() {
-        return "Translation";
-    }
 }

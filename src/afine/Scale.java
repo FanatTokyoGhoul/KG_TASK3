@@ -34,9 +34,4 @@ public class Scale implements IAfine{
     public void setyScale(double yScale) {
         this.yScale = yScale;
     }
-
-    @Override
-    public String toString() {
-        return "Scale";
-    }
 }

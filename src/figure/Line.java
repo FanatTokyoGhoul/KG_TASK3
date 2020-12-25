@@ -13,7 +13,6 @@ import screen_conversion.RealPoint;
 import screen_conversion.ScreenConvector;
 import screen_conversion.ScreenPoint;
 
-import java.util.List;
 import java.util.concurrent.TransferQueue;
 
 public class Line implements IFigure{
@@ -40,7 +39,7 @@ public class Line implements IFigure{
     }
 
     @Override
-    public ScreenPoint getCenter(ScreenConvector sc, List<IAfine> afines) {
+    public ScreenPoint getCenter(ScreenConvector sc) {
         return null;
     }
 
@@ -50,15 +49,19 @@ public class Line implements IFigure{
     }
 
     @Override
-    public Rotate getRotate(List<IAfine> afines) {
+    public double getCosFI(int x, int y, ScreenConvector sc) {
+        return 0;
+    }
+
+    @Override
+    public Rotate getRotate() {
         return null;
     }
 
     @Override
-    public boolean checkClickInRotationFlag(ScreenPoint sp, ScreenConvector sc, List<IAfine> afines) {
+    public boolean checkClickInRotationFlag(ScreenPoint sp, ScreenConvector sc) {
         return false;
     }
-
 
     public RealPoint getP2() {
         return p2;
@@ -69,21 +72,20 @@ public class Line implements IFigure{
     }
 
     @Override
-    public void draw(PixelDrawer pd, ScreenConvector sc, List<IAfine> afines) {
+    public void draw(PixelDrawer pd, ScreenConvector sc) {
         lineDrawer.setPixelDrawer(pd);
         lineDrawer.drawLine(sc.r2s(p1), sc.r2s(p2));
     }
 
     @Override
-    public boolean checkClick(ScreenPoint sp, ScreenConvector sc, List<IAfine> afines) {
+    public boolean checkClick(ScreenPoint sp, ScreenConvector sc) {
         return false;
     }
 
     @Override
-    public boolean checkClickInReference(ScreenPoint sp, ScreenConvector sc, List<IAfine> afines) {
+    public boolean checkClickInReference(ScreenPoint sp, ScreenConvector sc) {
         return false;
     }
-
 
     @Override
     public void setRedacted(boolean redacted) {
@@ -91,13 +93,12 @@ public class Line implements IFigure{
     }
 
     @Override
-    public Translation getTranslation(List<IAfine> afines) {
+    public Translation getTranslation() {
         return null;
     }
 
     @Override
-    public Scale getScale(List<IAfine> afines) {
+    public Scale getScale() {
         return null;
     }
-
 }

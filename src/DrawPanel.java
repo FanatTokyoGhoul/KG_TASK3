@@ -1,8 +1,9 @@
-import Utils.Checker;
+import Utils.LineDrawer;
 import Utils.PixelDrawer;
-import afine.AfineControl;
+import afine.Rotate;
 import drawers.pixel_drawer.BufferedImagePixelDrawer;
 import figure.IFigure;
+import figure.Line;
 import figure.Lozenge;
 import screen_conversion.RealPoint;
 import screen_conversion.ScreenConvector;
@@ -12,19 +13,18 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
 
 public class DrawPanel extends JPanel implements MouseListener, MouseMotionListener, MouseWheelListener, KeyListener {
 
     private ScreenConvector sc = new ScreenConvector(-2, 2, 4, 4, 800, 600);
     private ScreenPoint lastPosition = null;
-    private Map<IFigure, AfineControl> allFigure = new HashMap<>();
+    private ArrayList<IFigure> allFigure = new ArrayList<>();
     private IFigure currentFigure = null;
     private IFigure redactedFigure = null;
-    private AfineControl currentAfineControl = null;
-    private AfineControl redactedAfineControl = null;
-    private ScreenPoint controlerCoord = null;
+    private boolean isScale = false;
+    private boolean isRotate = false;
+
 
     public DrawPanel() {
         this.setFocusable(true);
@@ -44,20 +44,14 @@ public class DrawPanel extends JPanel implements MouseListener, MouseMotionListe
         graphics.setColor(new Color(255, 255, 255));
         graphics.fillRect(0, 0, getWidth(), getHeight());
         PixelDrawer pd = new BufferedImagePixelDrawer(bufferedImage);
-
-        if (currentFigure != null && currentAfineControl != null) {
-            currentFigure.draw(pd, sc, currentAfineControl.getAfinesList());
+        if(currentFigure != null){
+            currentFigure.draw(pd,sc);
         }
 
-        if(redactedAfineControl != null){
-            redactedAfineControl.drawControler(controlerCoord.getX(), controlerCoord.getY(), graphics);
-        }
-
-        for (Map.Entry<IFigure, AfineControl> entry : allFigure.entrySet()) {
-            entry.getKey().draw(pd, sc, entry.getValue().getAfinesList());
+        for(IFigure f : allFigure){
+            f.draw(pd, sc);
             graphics.setColor(Color.BLACK);
-            graphics.fillRect(entry.getKey().getCenter(sc, entry.getValue().getAfinesList()).getX() - 5,
-                    entry.getKey().getCenter(sc, entry.getValue().getAfinesList()).getY() - 5, 10, 10);
+            graphics.fillRect(f.getCenter(sc).getX() - 5, f.getCenter(sc).getY() - 5,10,10);
         }
         graphics.dispose();
 
@@ -66,48 +60,13 @@ public class DrawPanel extends JPanel implements MouseListener, MouseMotionListe
 
     @Override
     public void mouseClicked(MouseEvent mouseEvent) {
-        if(redactedAfineControl != null){
-            if(Checker.inRectangle(mouseEvent.getX(),mouseEvent.getY(),controlerCoord.getX(),controlerCoord.getY(),100, redactedAfineControl.getHeight())){
-
-                int selectedItem = (mouseEvent.getY() - controlerCoord.getY()) / 20;
-
-                if(redactedAfineControl.getSelectedItem() == -1) {
-
-                    if(redactedAfineControl.getAfinesList().size() <= selectedItem){
-                        redactedAfineControl.addIAfine(this);
-                        repaint();
-                        return;
-                    }
-
-                    redactedAfineControl.setSelectedItem(selectedItem);
-
-                }else if(redactedAfineControl.getSelectedItem() == selectedItem){
-
-                    redactedAfineControl.redactIAfine(this);
-                    resetSelection();
-
-                }else if(redactedAfineControl.getAfinesList().size() > selectedItem){
-
-                    redactedAfineControl.moveIAfine(redactedAfineControl.getSelectedItem(), selectedItem);
-                    redactedAfineControl.setSelectedItem(-1);
-
-                }
-            }else {
-                resetSelection();
-            }
-        }
-
-        switch (mouseEvent.getButton()) {
-            case MouseEvent.BUTTON3:
-                isRedactedFigure(mouseEvent);
-                break;
-        }
+        isRedactedFigure(mouseEvent);
         repaint();
     }
 
     @Override
     public void mousePressed(MouseEvent mouseEvent) {
-        if (redactedFigure == null) {
+        if(redactedFigure == null) {
             switch (mouseEvent.getButton()) {
                 case MouseEvent.BUTTON3:
                     lastPosition = new ScreenPoint(mouseEvent.getX(), mouseEvent.getY());
@@ -115,11 +74,15 @@ public class DrawPanel extends JPanel implements MouseListener, MouseMotionListe
                 case MouseEvent.BUTTON1:
                     currentFigure = new Lozenge(sc.s2r(new ScreenPoint(mouseEvent.getX(), mouseEvent.getY())),
                             sc.s2r(new ScreenPoint(mouseEvent.getX(), mouseEvent.getY())));
-                    currentAfineControl = new AfineControl();
                     break;
             }
-        } else {
+        }else {
             if (mouseEvent.getButton() == MouseEvent.BUTTON1) {
+                if(redactedFigure.checkClickInReference(new ScreenPoint(mouseEvent.getX(),mouseEvent.getY()),sc)){
+                    isScale = true;
+                }else if(redactedFigure.checkClickInRotationFlag(new ScreenPoint(mouseEvent.getX(),mouseEvent.getY()),sc)){
+                    isRotate = true;
+                }
                 lastPosition = new ScreenPoint(mouseEvent.getX(), mouseEvent.getY());
             }
         }
@@ -127,18 +90,19 @@ public class DrawPanel extends JPanel implements MouseListener, MouseMotionListe
 
     @Override
     public void mouseReleased(MouseEvent mouseEvent) {
-        if (redactedFigure == null) {
+        if(redactedFigure == null) {
             switch (mouseEvent.getButton()) {
                 case MouseEvent.BUTTON3:
                     lastPosition = null;
                     break;
                 case MouseEvent.BUTTON1:
-                    allFigure.put(currentFigure, currentAfineControl);
-                    currentAfineControl = null;
+                    allFigure.add(currentFigure);
                     currentFigure = null;
                     break;
             }
-        } else {
+        }else {
+            isScale = false;
+            isRotate = false;
             lastPosition = null;
         }
     }
@@ -155,8 +119,19 @@ public class DrawPanel extends JPanel implements MouseListener, MouseMotionListe
 
     @Override
     public void mouseDragged(MouseEvent mouseEvent) {
-        if (redactedFigure == null) {
+        if(redactedFigure == null) {
             moveViewingArea(mouseEvent);
+        }else {
+            if(lastPosition != null) {
+                if(isScale){
+                    scaleControl(mouseEvent);
+                }else if(isRotate){
+                    rotateControl(mouseEvent);
+                }else {
+                    translateControl(mouseEvent);
+                }
+                lastPosition = new ScreenPoint(mouseEvent.getX(), mouseEvent.getY());
+            }
         }
         repaint();
     }
@@ -170,8 +145,8 @@ public class DrawPanel extends JPanel implements MouseListener, MouseMotionListe
     public void mouseWheelMoved(MouseWheelEvent e) {
         int clicks = e.getWheelRotation();
         double scale = 1;
-        double coef = clicks < 0 ? 0.9 : 1.1;
-        for (int i = 0; i < Math.abs(clicks); i++) {
+        double coef = clicks < 0 ? 0.9:1.1;
+        for(int i = 0; i < Math.abs(clicks); i++){
             scale *= coef;
         }
         sc.setRealHeight(sc.getRealHeight() * scale);
@@ -179,13 +154,13 @@ public class DrawPanel extends JPanel implements MouseListener, MouseMotionListe
         repaint();
     }
 
-    private RealPoint createVector(int x, int y) {
-        ScreenPoint currentPosition = new ScreenPoint(x, y);
-        ScreenPoint deltaScreen = new ScreenPoint(
-                currentPosition.getX() - lastPosition.getX(),
-                currentPosition.getY() - lastPosition.getY());
-        RealPoint deltaReal = sc.s2r(deltaScreen);
-        RealPoint zeroReal = sc.s2r(new ScreenPoint(0, 0));
+    private RealPoint createVector(int x, int y){
+            ScreenPoint currentPosition = new ScreenPoint(x, y);
+            ScreenPoint deltaScreen = new ScreenPoint(
+                    currentPosition.getX() - lastPosition.getX(),
+                    currentPosition.getY() - lastPosition.getY());
+            RealPoint deltaReal = sc.s2r(deltaScreen);
+            RealPoint zeroReal = sc.s2r(new ScreenPoint(0, 0));
         return new RealPoint(
                 deltaReal.getX() - zeroReal.getX(),
                 deltaReal.getY() - zeroReal.getY());
@@ -198,13 +173,21 @@ public class DrawPanel extends JPanel implements MouseListener, MouseMotionListe
 
     @Override
     public void keyPressed(KeyEvent keyEvent) {
-        if (redactedFigure != null) {
-            if (keyEvent.getKeyCode() == KeyEvent.VK_DELETE) {
+        if(redactedFigure != null){
+            if(keyEvent.getKeyCode() == KeyEvent.VK_DELETE){
                 allFigure.remove(redactedFigure);
                 redactedFigure = null;
+            }else if(keyEvent.getKeyCode() == KeyEvent.VK_Z){
+                Rotate r = redactedFigure.getRotate();
+
+                RealPoint center = redactedFigure.getCenter();
+
+                r.setOffsetX(center.getX());
+                r.setOffsetY(center.getY());
+                r.setRadian(r.getRadian() + 0.01);
             }
-        } else {
-            if (keyEvent.getKeyCode() == KeyEvent.VK_DELETE) {
+        }else {
+            if(keyEvent.getKeyCode() == KeyEvent.VK_DELETE){
                 allFigure.clear();
                 redactedFigure = null;
             }
@@ -217,7 +200,7 @@ public class DrawPanel extends JPanel implements MouseListener, MouseMotionListe
 
     }
 
-    private void moveViewingArea(MouseEvent mouseEvent) {
+    private void moveViewingArea(MouseEvent mouseEvent){
         if (lastPosition != null) {
             RealPoint vector = createVector(mouseEvent.getX(), mouseEvent.getY());
             sc.setCornerX(sc.getCornerX() - vector.getX());
@@ -228,36 +211,65 @@ public class DrawPanel extends JPanel implements MouseListener, MouseMotionListe
         }
     }
 
-    private void isRedactedFigure(MouseEvent mouseEvent) {
+    private void isRedactedFigure(MouseEvent mouseEvent){
+        if(mouseEvent.getButton() == MouseEvent.BUTTON3) {
 
-        boolean allFigureNotRedacted = true;
+            boolean allFigureNotRedacted = true;
 
-        for (Map.Entry<IFigure, AfineControl> entry : allFigure.entrySet()) {
-            entry.getKey().setRedacted(false);
-        }
-
-        for (Map.Entry<IFigure, AfineControl> entry : allFigure.entrySet()) {
-            if (entry.getKey().checkClick(new ScreenPoint(mouseEvent.getX(), mouseEvent.getY()), sc, entry.getValue().getAfinesList())) {
-
-                if(entry.getKey().equals(redactedFigure)){
-                    redactedAfineControl = entry.getValue();
-                    controlerCoord = new ScreenPoint(mouseEvent.getX(), mouseEvent.getY());
-                }
-
-                entry.getKey().setRedacted(true);
-                redactedFigure = entry.getKey();
-                allFigureNotRedacted = false;
-                break;
+            for(IFigure l: allFigure){
+                l.setRedacted(false);
             }
-        }
-        if (allFigureNotRedacted) {
-            redactedFigure = null;
+
+            for(IFigure l: allFigure){
+                if(l.checkClick(new ScreenPoint(mouseEvent.getX(), mouseEvent.getY()), sc)){
+                    l.setRedacted(true);
+                    redactedFigure = l;
+                    allFigureNotRedacted = false;
+                    break;
+                }
+            }
+            if(allFigureNotRedacted){
+                redactedFigure = null;
+            }
         }
     }
 
-    private void resetSelection(){
-        redactedAfineControl.setSelectedItem(-1);
-        redactedAfineControl = null;
-        controlerCoord = null;
+    private void scaleControl(MouseEvent mouseEvent){
+        RealPoint vector = createVector(mouseEvent.getX(), mouseEvent.getY());
+        if(redactedFigure.getCenter(sc).getX() > mouseEvent.getX()){
+            vector.setX(vector.getX() * -1);
+        }
+
+        if(redactedFigure.getCenter(sc).getY() < mouseEvent.getY()){
+            vector.setY(vector.getY() * -1);
+        }
+
+        redactedFigure.getScale().setxScale(redactedFigure.getScale().getxScale() + vector.getX());
+        redactedFigure.getScale().setyScale(redactedFigure.getScale().getyScale() + vector.getY());
+        lastPosition = new ScreenPoint(mouseEvent.getX(), mouseEvent.getY());
+    }
+
+    private void rotateControl(MouseEvent mouseEvent){
+        double fi = 0;
+        ScreenPoint center = redactedFigure.getCenter(sc);
+        if(mouseEvent.getY() - lastPosition.getY() > 0 && center.getX() < mouseEvent.getX()){
+            fi = 0.01;
+        }else if(mouseEvent.getY() - lastPosition.getY() < 0 && center.getX() < mouseEvent.getX()){
+            fi = -0.01;
+        }else if(mouseEvent.getY() - lastPosition.getY() > 0 && center.getX() > mouseEvent.getX()){
+            fi = -0.01;
+        }else if(mouseEvent.getY() - lastPosition.getY() < 0 && center.getX() > mouseEvent.getX()){
+            fi = 0.01;
+        }
+        Rotate r = redactedFigure.getRotate();
+        r.setOffsetX(redactedFigure.getCenter().getX());
+        r.setOffsetY(redactedFigure.getCenter().getY());
+        r.setRadian(redactedFigure.getRotate().getRadian() + fi);
+    }
+
+    private void translateControl(MouseEvent mouseEvent){
+        RealPoint vector = createVector(mouseEvent.getX(), mouseEvent.getY());
+        redactedFigure.getTranslation().setX(redactedFigure.getTranslation().getX() - vector.getX());
+        redactedFigure.getTranslation().setY(redactedFigure.getTranslation().getY() - vector.getY());
     }
 }
